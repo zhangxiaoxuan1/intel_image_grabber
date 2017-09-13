@@ -139,15 +139,21 @@ try {
 
 	// Create directories to write to
 	if (depth_write) {
-		system(("mkdir -p " + depth_path).c_str());
+		if (system(("mkdir -p " + depth_path).c_str()) !=0) {
+	        throw std::runtime_error("Could not create directory");
+		}
 		depth_directory_created = true;
 	}
 	if (rgb_write) {
-		system(("mkdir -p " + rgb_path).c_str());
+		if (system(("mkdir -p " + rgb_path).c_str()) !=0) {
+	        throw std::runtime_error("Could not create directory");
+		}
 		rgb_directory_created = true;
 	}
 	if (ir_write) {
-		system(("mkdir -p " + ir_path).c_str());
+		if (system(("mkdir -p " + ir_path).c_str()) !=0) {
+	        throw std::runtime_error("Could not create directory");
+		}
 		ir_directory_created = true;
 	}
 
@@ -212,7 +218,9 @@ try {
 		case 32:
 			if (depth_enable) {
 				if (!depth_directory_created) {
-					system(("mkdir -p " + depth_path).c_str());
+					if (system(("mkdir -p " + depth_path).c_str()) !=0) {
+				        throw std::runtime_error("Could not create directory");
+					}
 					depth_directory_created = true;
 				}
 				std::stringstream ss;
@@ -222,7 +230,9 @@ try {
 			}
 			if (rgb_enable) {
 				if (!rgb_directory_created) {
-					system(("mkdir -p " + rgb_path).c_str());
+					if (system(("mkdir -p " + rgb_path).c_str()) !=0) {
+				        throw std::runtime_error("Could not create directory");
+					}
 					rgb_directory_created = true;
 				}
 				std::stringstream ss;
@@ -232,7 +242,9 @@ try {
 			}
 			if (ir_enable) {
 				if (!ir_directory_created) {
-					system(("mkdir -p " + ir_path).c_str());
+					if (system(("mkdir -p " + ir_path).c_str()) !=0) {
+				        throw std::runtime_error("Could not create directory");
+					}
 					ir_directory_created = true;
 				}
 				std::stringstream ss;
