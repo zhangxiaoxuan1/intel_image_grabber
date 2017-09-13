@@ -1,6 +1,6 @@
 # Requirements
 
-You should have openCV and librealsense installed on your system.
+OpenCV and librealsense should be installed in your system.
 
 # Instructions for building & running
 
@@ -14,4 +14,4 @@ When running the program, pass the config file path as an argument.
 
 # Notes
 
-Running the cpp file without cmake: g++ -std=c++11 snapshot_intel.cpp -lrealsense -lopencv_core -lopencv_highgui && ./a.out
+Compiling the cpp file without cmake: g++ -std=c++11 snapshot_intel.cpp -lrealsense -lopencv_core -lopencv_highgui
