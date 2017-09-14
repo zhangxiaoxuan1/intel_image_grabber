@@ -81,8 +81,8 @@ bool load_config() {
 	return true;
 }
 
-void make_depth_histogram(const cv::Mat &depth, cv::Mat &normalized_depth) {
-  normalized_depth = cv::Mat(depth.size(), CV_8UC1);
+void make_depth_histogram(const cv::Mat &depth, cv::Mat &colored_depth) {
+  colored_depth = cv::Mat(depth.size(), CV_8UC3);
 
   static uint32_t histogram[0x10000];
   memset(histogram, 0, sizeof(histogram));
@@ -98,10 +98,12 @@ void make_depth_histogram(const cv::Mat &depth, cv::Mat &normalized_depth) {
   for(int i = 0; i < 480; ++i) {
     for (int j = 0; j < 640; ++j) {
       if (uint16_t d = depth.at<ushort>(i,j)) {
+    	printf("%d ",d);
         int f = histogram[d] * 255 / histogram[0xFFFF]; // 0-255 based on histogram location
-        normalized_depth.at<uchar>(i,j) = static_cast<uchar>(f);
+        colored_depth.at<cv::Vec3b>(i,j) = cv::Vec3b(f, 0, 255-f);
       } else {
-        normalized_depth.at<uchar>(i,j) = 0;
+    	  printf("x ");
+    	  colored_depth.at<cv::Vec3b>(i,j) = cv::Vec3b(0, 5, 20);
       }
     }
   }
