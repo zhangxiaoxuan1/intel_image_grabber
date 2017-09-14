@@ -93,7 +93,10 @@ try {
 		config_file = std::string(argv[1]);
 	}
 	std::cerr << "Loading configuration file...";
-	load_config();
+	if (!load_config()){
+		std::cerr << "Failed to load configuration." << std::endl;
+		return EXIT_FAILURE;
+	}
 	std::cerr << "done!\n" << std::endl;
 
 	if (!depth_enable && !rgb_enable && !ir_enable) {
