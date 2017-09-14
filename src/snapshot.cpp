@@ -98,11 +98,9 @@ void make_depth_histogram(const cv::Mat &depth, cv::Mat &colored_depth) {
   for(int i = 0; i < 480; ++i) {
     for (int j = 0; j < 640; ++j) {
       if (uint16_t d = depth.at<ushort>(i,j)) {
-    	printf("%d ",d);
         int f = histogram[d] * 255 / histogram[0xFFFF]; // 0-255 based on histogram location
         colored_depth.at<cv::Vec3b>(i,j) = cv::Vec3b(f, 0, 255-f);
       } else {
-    	  printf("x ");
     	  colored_depth.at<cv::Vec3b>(i,j) = cv::Vec3b(0, 5, 20);
       }
     }
@@ -208,7 +206,7 @@ try {
 				cv::imwrite(ss.str(), depth);
 			}
 			if (depth_plot) {
-				// Convert 16bit to 8 bit
+				// Convert 16bit to 8 bit color
 				cv::Mat depth_show;
 				make_depth_histogram(depth, depth_show);
 				cv::imshow("Depth", depth_show);
@@ -218,6 +216,7 @@ try {
 			color = cv::Mat(cv::Size(640, 480), CV_8UC3,
 					(void*) dev->get_frame_data(rs::stream::color),
 					cv::Mat::AUTO_STEP);
+			cv::cvtColor(color, color, cv::COLOR_BGR2RGB );
 			if (rgb_write) {
 				std::stringstream ss;
 				ss << rgb_path << rgb_prefix << std::setw(5)
