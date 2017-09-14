@@ -178,8 +178,9 @@ try {
 			}
 			if (depth_plot) {
 				// Convert 16bit to 8 bit
-				depth.convertTo(depth, CV_8UC1, 255.0 / 1000);
-				cv::imshow("Depth", depth);
+				cv::Mat depth_show;
+				depth.convertTo(depth_show, CV_8UC1, 255.0 / 1000);
+				cv::imshow("Depth", depth_show);
 			}
 		}
 		if (rgb_enable) {
