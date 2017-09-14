@@ -81,6 +81,32 @@ bool load_config() {
 	return true;
 }
 
+void make_depth_histogram(const cv::Mat &depth, cv::Mat &normalized_depth) {
+  normalized_depth = cv::Mat(depth.size(), CV_8UC1);
+
+  static uint32_t histogram[0x10000];
+  memset(histogram, 0, sizeof(histogram));
+
+  for(int i = 0; i < 480; ++i) {
+    for (int j = 0; j < 640; ++j) {
+      ++histogram[depth.at<ushort>(i,j)];
+    }
+  }
+
+  for(int i = 2; i < 0x10000; ++i) histogram[i] += histogram[i-1]; // Build a cumulative histogram for the indices in [1,0xFFFF]
+
+  for(int i = 0; i < 480; ++i) {
+    for (int j = 0; j < 640; ++j) {
+      if (uint16_t d = depth.at<ushort>(i,j)) {
+        int f = histogram[d] * 255 / histogram[0xFFFF]; // 0-255 based on histogram location
+        normalized_depth.at<uchar>(i,j) = static_cast<uchar>(f);
+      } else {
+        normalized_depth.at<uchar>(i,j) = 0;
+      }
+    }
+  }
+}
+
 int main(int argc, char* argv[])
 try {
 
@@ -182,7 +208,7 @@ try {
 			if (depth_plot) {
 				// Convert 16bit to 8 bit
 				cv::Mat depth_show;
-				depth.convertTo(depth_show, CV_8UC1, 255.0 / 1000);
+				make_depth_histogram(depth, depth_show);
 				cv::imshow("Depth", depth_show);
 			}
 		}
