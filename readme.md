@@ -18,12 +18,24 @@ To load the default config file, run ./snapshot ../../config/config.toml
 
 Compiling the cpp file without cmake: g++ -std=c++11 snapshot_intel.cpp -lrealsense -lopencv_core -lopencv_highgui
 
+# Configurations
 
-# auto_exposure_mean_intensity
+## resolution and frame rate
 
-Value from 0 to 4095.
+R200 accepts the following configurations:
 
-# dp_preset
+* @60FPS, depth at 320x240, color can be 640x480
+* @60FPS, depth at 480x360,  color can be 320x240 or 640x480
+* @30FPS, depth at 320x240, color can be 640x480 or 1920x1080
+* @30FPS, depth at 480x360, color can be 320x240, 640x480, or 1920x1080
+
+Note that this documentation is old and other resolutions are also supported, for instance @60FPS 640*480 for both depth and color. Currently I haven't found an up-to-date documentation. 
+
+## auto_exposure_mean_intensity
+
+Value from 0 to 4095. Larger value leads to brighter IR image.
+
+## dp_preset
 
 This provides access to several recommend sets of depth control parameters. Default is 0.
 
