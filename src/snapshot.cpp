@@ -19,6 +19,8 @@ std::string config_file;
 int capture_num;
 int frame_rate;
 int dc_preset;
+bool camera_auto_exposure;
+int camera_auto_exposure_mean_intensity_set_point;
 
 bool depth_enable;
 bool depth_plot;
@@ -67,6 +69,8 @@ bool load_config() {
 	dc_preset = v.get<int>("settings.dc_preset");
 	capture_num = v.get<int>("settings.frame_number");
 	frame_rate = v.get<int>("settings.frame_rate");
+	camera_auto_exposure = v.get<bool>("settings.auto_exposure");
+	camera_auto_exposure_mean_intensity_set_point = v.get<int>("settings.auto_exposure_mean_intensity");
 
 	depth_enable = v.get<bool>("depth.enable");
 	depth_plot = v.get<bool>("depth.display");
@@ -157,6 +161,10 @@ try {
 	}
 
 	// Access the device
+	if (ctx.get_device_count() == 0) {
+		printf("You have 0 device connected. Please check connection.\n");
+		return EXIT_FAILURE;
+	}
 	rs::device * dev = ctx.get_device(0);
 	printf("Using device 0, an %s\n", dev->get_name());
 	printf("    Serial number: %s\n", dev->get_serial());
@@ -180,17 +188,18 @@ try {
 		printf("No stream enabled, program exits automatically.\n");
 		return EXIT_SUCCESS;
 	}
-	// Configure camera
-	if (ctx.get_device_count() == 0) {
-		printf("You have 0 device connected. Please check connection.\n");
-		return EXIT_FAILURE;
-	}
 
+	// Configure camera - Set hardware outlier removal parameters and auto exposure parameters
 	if (dc_preset < 0 || dc_preset > 5){
 		printf("Error: re_preset must be between 0 and 5. Check readme for configuration details.\n");
 		return EXIT_FAILURE;
 	}
 	rs_apply_depth_control_preset((rs_device *)dev, dc_preset);
+	std::cout << dev->get_option(rs::option::r200_auto_exposure_mean_intensity_set_point) << '\n';
+	dev->set_option(rs::option::r200_lr_auto_exposure_enabled, camera_auto_exposure);
+	if(camera_auto_exposure){
+		dev->set_option(rs::option::r200_auto_exposure_mean_intensity_set_point, (double)camera_auto_exposure_mean_intensity_set_point);
+	}
 	dev->start();
 
 	// Camera warmup - Dropped several first frames to let auto-exposure stabilize
