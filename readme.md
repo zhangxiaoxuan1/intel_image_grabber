@@ -18,6 +18,11 @@ To load the default config file, run ./snapshot ../../config/config.toml
 
 Compiling the cpp file without cmake: g++ -std=c++11 snapshot_intel.cpp -lrealsense -lopencv_core -lopencv_highgui
 
+
+# auto_exposure_mean_intensity
+
+Value from 0 to 4095.
+
 # dp_preset
 
 This provides access to several recommend sets of depth control parameters. Default is 0.
