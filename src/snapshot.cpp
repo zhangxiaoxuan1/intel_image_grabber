@@ -17,6 +17,9 @@ std::string name_suffix = ".png";
 std::string config_file;
 
 int capture_num;
+int frame_rate;
+int dc_preset;
+
 bool depth_enable;
 bool depth_plot;
 bool depth_write;
@@ -24,6 +27,8 @@ std::string depth_path;
 std::string depth_prefix;
 std::string depth_snap_prefix;
 bool depth_directory_created = false;
+int depth_width;
+int depth_height;
 
 bool rgb_enable;
 bool rgb_plot;
@@ -32,6 +37,8 @@ std::string rgb_path;
 std::string rgb_prefix;
 std::string rgb_snap_prefix;
 bool rgb_directory_created = false;
+int rgb_width;
+int rgb_height;
 
 bool ir_enable;
 bool ir_plot;
@@ -40,6 +47,8 @@ std::string ir_path;
 std::string ir_prefix;
 std::string ir_snap_prefix;
 bool ir_directory_created = false;
+int ir_width;
+int ir_height;
 
 bool load_config() {
 	std::ifstream input(config_file);
@@ -55,7 +64,9 @@ bool load_config() {
 	// pr.value is the parsed value.
 	const toml::Value& v = pr.value;
 
+	dc_preset = v.get<int>("settings.dc_preset");
 	capture_num = v.get<int>("settings.frame_number");
+	frame_rate = v.get<int>("settings.frame_rate");
 
 	depth_enable = v.get<bool>("depth.enable");
 	depth_plot = v.get<bool>("depth.display");
@@ -63,6 +74,8 @@ bool load_config() {
 	depth_path = v.get<std::string>("depth.directory");
 	depth_prefix = v.get<std::string>("depth.export_prefix");
 	depth_snap_prefix = v.get<std::string>("depth.snapshot_prefix");
+	depth_width = v.get<int>("depth.width");
+	depth_height = v.get<int>("depth.height");
 
 	rgb_enable = v.get<bool>("color.enable");
 	rgb_plot = v.get<bool>("color.display");
@@ -70,6 +83,8 @@ bool load_config() {
 	rgb_path = v.get<std::string>("color.directory");
 	rgb_prefix = v.get<std::string>("color.export_prefix");
 	rgb_snap_prefix = v.get<std::string>("color.snapshot_prefix");
+	rgb_width = v.get<int>("color.width");
+	rgb_height = v.get<int>("color.height");
 
 	ir_enable = v.get<bool>("ir.enable");
 	ir_plot = v.get<bool>("ir.display");
@@ -77,6 +92,8 @@ bool load_config() {
 	ir_path = v.get<std::string>("ir.directory");
 	ir_prefix = v.get<std::string>("ir.export_prefix");
 	ir_snap_prefix = v.get<std::string>("ir.snapshot_prefix");
+	ir_width = v.get<int>("ir.width");
+	ir_height = v.get<int>("ir.height");
 
 	return true;
 }
@@ -87,16 +104,16 @@ void make_depth_histogram(const cv::Mat &depth, cv::Mat &colored_depth) {
   static uint32_t histogram[0x10000];
   memset(histogram, 0, sizeof(histogram));
 
-  for(int i = 0; i < 480; ++i) {
-    for (int j = 0; j < 640; ++j) {
+  for(int i = 0; i < depth_height; ++i) {
+    for (int j = 0; j < depth_width; ++j) {
       ++histogram[depth.at<ushort>(i,j)];
     }
   }
 
   for(int i = 2; i < 0x10000; ++i) histogram[i] += histogram[i-1]; // Build a cumulative histogram for the indices in [1,0xFFFF]
 
-  for(int i = 0; i < 480; ++i) {
-    for (int j = 0; j < 640; ++j) {
+  for(int i = 0; i < depth_height; ++i) {
+    for (int j = 0; j < depth_width; ++j) {
       if (uint16_t d = depth.at<ushort>(i,j)) {
         int f = histogram[d] * 255 / histogram[0xFFFF]; // 0-255 based on histogram location
         colored_depth.at<cv::Vec3b>(i,j) = cv::Vec3b(f, 0, 255-f);
@@ -120,13 +137,13 @@ try {
 	}
 	std::cerr << "Loading configuration file...";
 	if (!load_config()){
-		std::cerr << "Failed to load configuration." << std::endl;
+		printf("Failed to load configuration.\n");
 		return EXIT_FAILURE;
 	}
 	std::cerr << "done!\n" << std::endl;
 
 	if (!depth_enable && !rgb_enable && !ir_enable) {
-		std::cerr << "Error: No streams enabled" << std::endl;
+		printf("Error: No streams enabled.\n");
 		return EXIT_FAILURE;
 	}
 
@@ -145,20 +162,35 @@ try {
 	printf("    Serial number: %s\n", dev->get_serial());
 	printf("    Firmware version: %s\n", dev->get_firmware_version());
 
-	// Configure all streams to run at 640*480 at 30 frames per second
+	// Configure streams
+	if (frame_rate != 30 && frame_rate != 60){
+		printf("Error: Frame rate must be 30 or 60.\n");
+		return EXIT_FAILURE;
+	}
 	if (depth_enable) {
-		dev->enable_stream(rs::stream::depth, 640, 480, rs::format::z16, 30);
+		dev->enable_stream(rs::stream::depth, depth_width, depth_height, rs::format::z16, frame_rate);
 	}
 	if (rgb_enable) {
-		dev->enable_stream(rs::stream::color, 640, 480, rs::format::rgb8, 30);
+		dev->enable_stream(rs::stream::color, rgb_width, rgb_height, rs::format::rgb8, frame_rate);
 	}
 	if (ir_enable) {
-		dev->enable_stream(rs::stream::infrared, 640, 480, rs::format::y8, 30);
+		dev->enable_stream(rs::stream::infrared, ir_width, ir_height, rs::format::y8, frame_rate);
 	}
 	if (!depth_enable && !rgb_enable && !ir_enable) {
 		printf("No stream enabled, program exits automatically.\n");
 		return EXIT_SUCCESS;
 	}
+	// Configure camera
+	if (ctx.get_device_count() == 0) {
+		printf("You have 0 device connected. Please check connection.\n");
+		return EXIT_FAILURE;
+	}
+
+	if (dc_preset < 0 || dc_preset > 5){
+		printf("Error: re_preset must be between 0 and 5. Check readme for configuration details.\n");
+		return EXIT_FAILURE;
+	}
+	rs_apply_depth_control_preset((rs_device *)dev, dc_preset);
 	dev->start();
 
 	// Camera warmup - Dropped several first frames to let auto-exposure stabilize
@@ -196,7 +228,7 @@ try {
 			dev->wait_for_frames();
 
 		if (depth_enable) {
-			depth = cv::Mat(cv::Size(640, 480), CV_16UC1,
+			depth = cv::Mat(cv::Size(depth_width, depth_height), CV_16UC1,
 					(void*) dev->get_frame_data(rs::stream::depth),
 					cv::Mat::AUTO_STEP);
 			if (depth_write) {
@@ -213,7 +245,7 @@ try {
 			}
 		}
 		if (rgb_enable) {
-			color = cv::Mat(cv::Size(640, 480), CV_8UC3,
+			color = cv::Mat(cv::Size(rgb_width, rgb_height), CV_8UC3,
 					(void*) dev->get_frame_data(rs::stream::color),
 					cv::Mat::AUTO_STEP);
 			cv::cvtColor(color, color, cv::COLOR_BGR2RGB );
@@ -228,7 +260,7 @@ try {
 			}
 		}
 		if (ir_enable) {
-			ir = cv::Mat(cv::Size(640, 480), CV_8UC1,
+			ir = cv::Mat(cv::Size(ir_width, ir_height), CV_8UC1,
 					(void*) dev->get_frame_data(rs::stream::infrared),
 					cv::Mat::AUTO_STEP);
 			if (ir_write) {
@@ -241,7 +273,7 @@ try {
 				cv::imshow("IR", ir);
 			}
 		}
-		int key = cv::waitKey(200);
+		int key = cv::waitKey(1);
 		switch (key) {
 		case 27:
 			printf("Escape key pressed. Exiting program...\n");

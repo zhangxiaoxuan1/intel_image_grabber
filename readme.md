@@ -12,6 +12,8 @@ Before running the program, change the config.toml file to your specifications.
 
 When running the program, pass the config file path as an argument.
 
+To load the default config file, run ./snapshot ../../config/config.toml
+
 # Notes
 
 Compiling the cpp file without cmake: g++ -std=c++11 snapshot_intel.cpp -lrealsense -lopencv_core -lopencv_highgui
