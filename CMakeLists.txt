@@ -7,6 +7,7 @@ if (DEFINED CMAKE_BUILD_TYPE)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/librealsense")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/poco")
 
 # ---[ Solution name
 project(realsense_grabber C CXX)

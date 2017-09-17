@@ -12,6 +12,11 @@
 #include <fstream>
 #include "toml.h"
 
+#include "Poco/DirectoryIterator.h"
+#include "Poco/Path.h"
+#include "Poco/File.h"
+#include "Poco/Exception.h"
+
 int frames_written = 0;
 std::string name_suffix = ".png";
 std::string config_file;
@@ -25,30 +30,30 @@ int camera_auto_exposure_mean_intensity_set_point;
 bool depth_enable;
 bool depth_plot;
 bool depth_write;
+bool depth_snapshot;
 std::string depth_path;
 std::string depth_prefix;
 std::string depth_snap_prefix;
-bool depth_directory_created = false;
 int depth_width;
 int depth_height;
 
 bool rgb_enable;
 bool rgb_plot;
 bool rgb_write;
+bool rgb_snapshot;
 std::string rgb_path;
 std::string rgb_prefix;
 std::string rgb_snap_prefix;
-bool rgb_directory_created = false;
 int rgb_width;
 int rgb_height;
 
 bool ir_enable;
 bool ir_plot;
 bool ir_write;
+bool ir_snapshot;
 std::string ir_path;
 std::string ir_prefix;
 std::string ir_snap_prefix;
-bool ir_directory_created = false;
 int ir_width;
 int ir_height;
 
@@ -75,6 +80,7 @@ bool load_config() {
 	depth_enable = v.get<bool>("depth.enable");
 	depth_plot = v.get<bool>("depth.display");
 	depth_write = v.get<bool>("depth.export");
+	depth_snapshot = v.get<bool>("depth.snapshot");
 	depth_path = v.get<std::string>("depth.directory");
 	depth_prefix = v.get<std::string>("depth.export_prefix");
 	depth_snap_prefix = v.get<std::string>("depth.snapshot_prefix");
@@ -84,6 +90,7 @@ bool load_config() {
 	rgb_enable = v.get<bool>("color.enable");
 	rgb_plot = v.get<bool>("color.display");
 	rgb_write = v.get<bool>("color.export");
+	rgb_snapshot = v.get<bool>("color.snapshot");
 	rgb_path = v.get<std::string>("color.directory");
 	rgb_prefix = v.get<std::string>("color.export_prefix");
 	rgb_snap_prefix = v.get<std::string>("color.snapshot_prefix");
@@ -93,6 +100,7 @@ bool load_config() {
 	ir_enable = v.get<bool>("ir.enable");
 	ir_plot = v.get<bool>("ir.display");
 	ir_write = v.get<bool>("ir.export");
+	ir_snapshot = v.get<bool>("ir.snapshot");
 	ir_path = v.get<std::string>("ir.directory");
 	ir_prefix = v.get<std::string>("ir.export_prefix");
 	ir_snap_prefix = v.get<std::string>("ir.snapshot_prefix");
@@ -195,7 +203,6 @@ try {
 		return EXIT_FAILURE;
 	}
 	rs_apply_depth_control_preset((rs_device *)dev, dc_preset);
-	std::cout << dev->get_option(rs::option::r200_auto_exposure_mean_intensity_set_point) << '\n';
 	dev->set_option(rs::option::r200_lr_auto_exposure_enabled, camera_auto_exposure);
 	if(camera_auto_exposure){
 		dev->set_option(rs::option::r200_auto_exposure_mean_intensity_set_point, (double)camera_auto_exposure_mean_intensity_set_point);
@@ -207,24 +214,33 @@ try {
 		dev->wait_for_frames();
 	}
 
-	// Create directories to write to
-	if (depth_write) {
-		if (system(("mkdir -p " + depth_path).c_str()) !=0) {
-	        throw std::runtime_error("Could not create directory");
-		}
-		depth_directory_created = true;
+	// Create directories to write to if don't exist
+	if (depth_write || depth_snapshot) {
+		 try{
+			 Poco::Path d_path(depth_path.c_str());
+			 Poco::File tmpDir(d_path);
+			 tmpDir.createDirectories();
+		 } catch (Poco::FileException &e) {
+			 printf("Error: Failed to create depth directory, depth images will not be saved.\n");
+		 }
 	}
-	if (rgb_write) {
-		if (system(("mkdir -p " + rgb_path).c_str()) !=0) {
-	        throw std::runtime_error("Could not create directory");
-		}
-		rgb_directory_created = true;
+	if (rgb_write || rgb_snapshot) {
+		 try{
+			 Poco::Path r_path(rgb_path.c_str());
+			 Poco::File tmpDir(r_path);
+			 tmpDir.createDirectories();
+		 } catch (Poco::FileException &e) {
+			 printf("Error: Failed to create rgb directory, rgb images will not be saved.\n");
+		 }
 	}
-	if (ir_write) {
-		if (system(("mkdir -p " + ir_path).c_str()) !=0) {
-	        throw std::runtime_error("Could not create directory");
-		}
-		ir_directory_created = true;
+	if (ir_write || ir_snapshot) {
+		 try{
+			 Poco::Path i_path(ir_path.c_str());
+			 Poco::File tmpDir(i_path);
+			 tmpDir.createDirectories();
+		 } catch (Poco::FileException &e) {
+			 printf("Error: Failed to create ir directory, ir images will not be saved.\n");
+		 }
 	}
 
 	cv::Mat color;    //(height, width, CV_8UC3);
@@ -282,47 +298,32 @@ try {
 				cv::imshow("IR", ir);
 			}
 		}
-		int key = cv::waitKey(1);
+		int key = cv::waitKey(10);
 		switch (key) {
 		case 27:
 			printf("Escape key pressed. Exiting program...\n");
 			return EXIT_SUCCESS;
 		case 32:
-			if (depth_enable) {
-				if (!depth_directory_created) {
-					if (system(("mkdir -p " + depth_path).c_str()) !=0) {
-				        throw std::runtime_error("Could not create directory");
-					}
-					depth_directory_created = true;
-				}
+			cv::Mat current_depth = depth;
+			cv::Mat current_color = color;
+			cv::Mat current_ir = ir;
+			if (depth_enable && depth_snapshot) {
 				std::stringstream ss;
 				ss << depth_path << depth_snap_prefix << std::setw(5)
 						<< std::setfill('0') << frames_written << name_suffix;
-				cv::imwrite(ss.str(), depth);
+				cv::imwrite(ss.str(), current_depth);
 			}
-			if (rgb_enable) {
-				if (!rgb_directory_created) {
-					if (system(("mkdir -p " + rgb_path).c_str()) !=0) {
-				        throw std::runtime_error("Could not create directory");
-					}
-					rgb_directory_created = true;
-				}
+			if (rgb_enable && rgb_snapshot) {
 				std::stringstream ss;
 				ss << rgb_path << rgb_snap_prefix << std::setw(5)
 						<< std::setfill('0') << frames_written << name_suffix;
-				cv::imwrite(ss.str(), color);
+				cv::imwrite(ss.str(), current_color);
 			}
-			if (ir_enable) {
-				if (!ir_directory_created) {
-					if (system(("mkdir -p " + ir_path).c_str()) !=0) {
-				        throw std::runtime_error("Could not create directory");
-					}
-					ir_directory_created = true;
-				}
+			if (ir_enable && ir_snapshot) {
 				std::stringstream ss;
 				ss << ir_path << ir_snap_prefix << std::setw(5)
 						<< std::setfill('0') << frames_written << name_suffix;
-				cv::imwrite(ss.str(), ir);
+				cv::imwrite(ss.str(), current_ir);
 			}
 			frames_written++;
 			printf("Snapshot is taken.\n");
