@@ -1,5 +1,5 @@
 [settings]
-frame_number = 100
+frame_number = 10000
 frame_rate = 30
 dc_preset = 4
 auto_exposure = true
@@ -13,8 +13,8 @@ snapshot = true
 directory = "/home/isaac/Pictures/intel_snapshot_test/depth/"
 export_prefix = "depth"
 snapshot_prefix = "depth_snap"
-width = 480
-height = 360
+width = 640
+height = 480
 
 [color]
 enable = true
@@ -35,6 +35,6 @@ snapshot = true
 directory = "/home/isaac/Pictures/intel_snapshot_test/ir/"
 export_prefix = "ir"
 snapshot_prefix = "ir_snap"
-width = 480
-height = 360
+width = 640
+height = 480
 

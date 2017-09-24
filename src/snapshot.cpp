@@ -57,6 +57,8 @@ std::string ir_snap_prefix;
 int ir_width;
 int ir_height;
 
+double g_dScale = 5000;//depth scale
+
 bool load_config() {
 	std::ifstream input(config_file);
 
@@ -178,6 +180,35 @@ try {
 	printf("    Serial number: %s\n", dev->get_serial());
 	printf("    Firmware version: %s\n", dev->get_firmware_version());
 
+	// Create directories to write to if don't exist
+		if (depth_write || depth_snapshot) {
+			 try{
+				 Poco::Path d_path(depth_path.c_str());
+				 Poco::File tmpDir(d_path);
+				 tmpDir.createDirectories();
+			 } catch (Poco::FileException &e) {
+				 printf("Error: Failed to create depth directory, depth images will not be saved.\n");
+			 }
+		}
+		if (rgb_write || rgb_snapshot) {
+			 try{
+				 Poco::Path r_path(rgb_path.c_str());
+				 Poco::File tmpDir(r_path);
+				 tmpDir.createDirectories();
+			 } catch (Poco::FileException &e) {
+				 printf("Error: Failed to create rgb directory, rgb images will not be saved.\n");
+			 }
+		}
+		if (ir_write || ir_snapshot) {
+			 try{
+				 Poco::Path i_path(ir_path.c_str());
+				 Poco::File tmpDir(i_path);
+				 tmpDir.createDirectories();
+			 } catch (Poco::FileException &e) {
+				 printf("Error: Failed to create ir directory, ir images will not be saved.\n");
+			 }
+		}
+
 	// Configure streams
 	if (frame_rate != 30 && frame_rate != 60){
 		printf("Error: Frame rate must be 30 or 60.\n");
@@ -212,35 +243,6 @@ try {
 	// Camera warmup - Dropped several first frames to let auto-exposure stabilize
 	for (int i = 0; i < 30; i++) {
 		dev->wait_for_frames();
-	}
-
-	// Create directories to write to if don't exist
-	if (depth_write || depth_snapshot) {
-		 try{
-			 Poco::Path d_path(depth_path.c_str());
-			 Poco::File tmpDir(d_path);
-			 tmpDir.createDirectories();
-		 } catch (Poco::FileException &e) {
-			 printf("Error: Failed to create depth directory, depth images will not be saved.\n");
-		 }
-	}
-	if (rgb_write || rgb_snapshot) {
-		 try{
-			 Poco::Path r_path(rgb_path.c_str());
-			 Poco::File tmpDir(r_path);
-			 tmpDir.createDirectories();
-		 } catch (Poco::FileException &e) {
-			 printf("Error: Failed to create rgb directory, rgb images will not be saved.\n");
-		 }
-	}
-	if (ir_write || ir_snapshot) {
-		 try{
-			 Poco::Path i_path(ir_path.c_str());
-			 Poco::File tmpDir(i_path);
-			 tmpDir.createDirectories();
-		 } catch (Poco::FileException &e) {
-			 printf("Error: Failed to create ir directory, ir images will not be saved.\n");
-		 }
 	}
 
 	cv::Mat color;    //(height, width, CV_8UC3);
@@ -339,3 +341,93 @@ catch (const rs::error & e) {
 	printf("    %s\n", e.what());
 	return EXIT_FAILURE;
 }
+
+/** @brief Convert png image files to .klg format
+ *
+ *  @param vec_info vector of path <timestamp, <depth path, rgb path>>
+ *  @param strKlgFileName output file name
+ *  @return void
+ */
+
+/*
+void convertToKlg(
+    VEC_INFO &vec_info,
+    std::string &strKlgFileName)
+{
+    std::cout << "klg_name:\n\t" << strKlgFileName << std::endl;
+
+
+    std::string filename = strKlgFileName;//"test2.klg";
+    FILE * logFile = fopen(filename.c_str(), "wb+");
+
+    int32_t numFrames = (int32_t)vec_info.size() - 1;
+
+    fwrite(&numFrames, sizeof(int32_t), 1, logFile);
+
+    //CvMat *encodedImage = 0;
+
+    VEC_INFO::iterator it = vec_info.begin();
+    int count = 1;
+    std::cout << "Progress:\n";
+    for(it; it != vec_info.end(); it++)
+    {
+        std::string strAbsPathDepth =
+            std::string(
+                        getcwd(NULL, 0)) + "/" +
+                        it->second.first;
+
+
+        cv::Mat depth = imread(strAbsPathDepth.c_str(), cv::IMREAD_UNCHANGED);
+
+        double depthScale = g_dScale;
+        depth.convertTo(depth, CV_16UC1, 1000 * 1.0 / depthScale);
+
+        int32_t depthSize = depth.total() * depth.elemSize();
+
+        std::string strAbsPath = std::string(
+                    getcwd(NULL, 0)) + "/" +
+                    it->second.second;
+
+        IplImage *img =
+            cvLoadImage(strAbsPath.c_str(),
+                        CV_LOAD_IMAGE_UNCHANGED);
+        if(img == NULL)
+        {
+            fclose(logFile);
+            return;
+        }
+
+        int32_t imageSize = img->height * img->width * sizeof(unsigned char) * 3;
+
+        unsigned char * rgbData = 0;
+        rgbData = (unsigned char *)img->imageData;
+
+        std::cout << '\r'
+                  << std::setw(4) << std::setfill('0') << count << " / "
+                  << std::setw(4) << std::setfill('0') << vec_info.size()
+                  << std::flush;
+        count++;
+
+        /// Timestamp
+        fwrite(&it->first, sizeof(int64_t), 1, logFile);
+
+        /// DepthSize
+        fwrite(&depthSize, sizeof(int32_t), 1, logFile);
+
+        /// imageSize
+        fwrite(&imageSize, sizeof(int32_t), 1, logFile);
+
+        /// Depth buffer
+        fwrite((char*)depth.data, depthSize, 1, logFile);
+
+        /// RGB buffer
+        fwrite(rgbData, imageSize, 1, logFile);
+
+        cvReleaseImage(&img);
+        depth.release();
+    }
+    std::cout << std::endl;
+
+    fclose(logFile);
+}
+*/
