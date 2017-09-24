@@ -26,6 +26,8 @@ int frame_rate;
 int dc_preset;
 bool camera_auto_exposure;
 int camera_auto_exposure_mean_intensity_set_point;
+bool write_klg;
+std::string root_path;
 
 bool depth_enable;
 bool depth_plot;
@@ -78,12 +80,14 @@ bool load_config() {
 	frame_rate = v.get<int>("settings.frame_rate");
 	camera_auto_exposure = v.get<bool>("settings.auto_exposure");
 	camera_auto_exposure_mean_intensity_set_point = v.get<int>("settings.auto_exposure_mean_intensity");
+	write_klg = v.get<bool>("settings.write_klg");
+	root_path = v.get<std::string>("settings.directory");
 
 	depth_enable = v.get<bool>("depth.enable");
 	depth_plot = v.get<bool>("depth.display");
 	depth_write = v.get<bool>("depth.export");
 	depth_snapshot = v.get<bool>("depth.snapshot");
-	depth_path = v.get<std::string>("depth.directory");
+	depth_path = v.get<std::string>("settings.directory")+"depth/";
 	depth_prefix = v.get<std::string>("depth.export_prefix");
 	depth_snap_prefix = v.get<std::string>("depth.snapshot_prefix");
 	depth_width = v.get<int>("depth.width");
@@ -93,7 +97,7 @@ bool load_config() {
 	rgb_plot = v.get<bool>("color.display");
 	rgb_write = v.get<bool>("color.export");
 	rgb_snapshot = v.get<bool>("color.snapshot");
-	rgb_path = v.get<std::string>("color.directory");
+	rgb_path = v.get<std::string>("settings.directory")+"rgb/";
 	rgb_prefix = v.get<std::string>("color.export_prefix");
 	rgb_snap_prefix = v.get<std::string>("color.snapshot_prefix");
 	rgb_width = v.get<int>("color.width");
@@ -103,7 +107,7 @@ bool load_config() {
 	ir_plot = v.get<bool>("ir.display");
 	ir_write = v.get<bool>("ir.export");
 	ir_snapshot = v.get<bool>("ir.snapshot");
-	ir_path = v.get<std::string>("ir.directory");
+	ir_path = v.get<std::string>("settings.directory")+"ir/";
 	ir_prefix = v.get<std::string>("ir.export_prefix");
 	ir_snap_prefix = v.get<std::string>("ir.snapshot_prefix");
 	ir_width = v.get<int>("ir.width");
@@ -180,7 +184,7 @@ try {
 	printf("    Serial number: %s\n", dev->get_serial());
 	printf("    Firmware version: %s\n", dev->get_firmware_version());
 
-	// Create directories to write to if don't exist
+	// Create directories to write to if don't exist & create klg assossiation file if necessary
 		if (depth_write || depth_snapshot) {
 			 try{
 				 Poco::Path d_path(depth_path.c_str());
@@ -208,6 +212,7 @@ try {
 				 printf("Error: Failed to create ir directory, ir images will not be saved.\n");
 			 }
 		}
+		std::ofstream file(root_path+"associations.txt");
 
 	// Configure streams
 	if (frame_rate != 30 && frame_rate != 60){
@@ -263,6 +268,13 @@ try {
 				ss << depth_path << depth_prefix << std::setw(5)
 						<< std::setfill('0') << i << name_suffix;
 				cv::imwrite(ss.str(), depth);
+				if(write_klg){
+					std::stringstream klg_ss;
+					file << i << " ";
+					klg_ss << "./depth/" << depth_prefix << std::setw(5)
+					<< std::setfill('0') << i << name_suffix;
+					file << klg_ss.str() << " ";
+				}
 			}
 			if (depth_plot) {
 				// Convert 16bit to 8 bit color
@@ -281,6 +293,13 @@ try {
 				ss << rgb_path << rgb_prefix << std::setw(5)
 						<< std::setfill('0') << i << name_suffix;
 				cv::imwrite(ss.str(), color);
+				if(write_klg){
+					std::stringstream klg_ss;
+					klg_ss << i << " ./rgb/" << rgb_prefix << std::setw(5)
+					<< std::setfill('0') << i << name_suffix;
+					file << klg_ss.str() << "\n";
+				}
+
 			}
 			if (rgb_plot) {
 				cv::imshow("RGB", color);
@@ -341,93 +360,3 @@ catch (const rs::error & e) {
 	printf("    %s\n", e.what());
 	return EXIT_FAILURE;
 }
-
-/** @brief Convert png image files to .klg format
- *
- *  @param vec_info vector of path <timestamp, <depth path, rgb path>>
- *  @param strKlgFileName output file name
- *  @return void
- */
-
-/*
-void convertToKlg(
-    VEC_INFO &vec_info,
-    std::string &strKlgFileName)
-{
-    std::cout << "klg_name:\n\t" << strKlgFileName << std::endl;
-
-
-    std::string filename = strKlgFileName;//"test2.klg";
-    FILE * logFile = fopen(filename.c_str(), "wb+");
-
-    int32_t numFrames = (int32_t)vec_info.size() - 1;
-
-    fwrite(&numFrames, sizeof(int32_t), 1, logFile);
-
-    //CvMat *encodedImage = 0;
-
-    VEC_INFO::iterator it = vec_info.begin();
-    int count = 1;
-    std::cout << "Progress:\n";
-    for(it; it != vec_info.end(); it++)
-    {
-        std::string strAbsPathDepth =
-            std::string(
-                        getcwd(NULL, 0)) + "/" +
-                        it->second.first;
-
-
-        cv::Mat depth = imread(strAbsPathDepth.c_str(), cv::IMREAD_UNCHANGED);
-
-        double depthScale = g_dScale;
-        depth.convertTo(depth, CV_16UC1, 1000 * 1.0 / depthScale);
-
-        int32_t depthSize = depth.total() * depth.elemSize();
-
-        std::string strAbsPath = std::string(
-                    getcwd(NULL, 0)) + "/" +
-                    it->second.second;
-
-        IplImage *img =
-            cvLoadImage(strAbsPath.c_str(),
-                        CV_LOAD_IMAGE_UNCHANGED);
-        if(img == NULL)
-        {
-            fclose(logFile);
-            return;
-        }
-
-        int32_t imageSize = img->height * img->width * sizeof(unsigned char) * 3;
-
-        unsigned char * rgbData = 0;
-        rgbData = (unsigned char *)img->imageData;
-
-        std::cout << '\r'
-                  << std::setw(4) << std::setfill('0') << count << " / "
-                  << std::setw(4) << std::setfill('0') << vec_info.size()
-                  << std::flush;
-        count++;
-
-        /// Timestamp
-        fwrite(&it->first, sizeof(int64_t), 1, logFile);
-
-        /// DepthSize
-        fwrite(&depthSize, sizeof(int32_t), 1, logFile);
-
-        /// imageSize
-        fwrite(&imageSize, sizeof(int32_t), 1, logFile);
-
-        /// Depth buffer
-        fwrite((char*)depth.data, depthSize, 1, logFile);
-
-        /// RGB buffer
-        fwrite(rgbData, imageSize, 1, logFile);
-
-        cvReleaseImage(&img);
-        depth.release();
-    }
-    std::cout << std::endl;
-
-    fclose(logFile);
-}
-*/
