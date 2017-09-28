@@ -1,11 +1,12 @@
 [settings]
-frame_number = 1500
+frame_number = 1000
 frame_rate = 30
 dc_preset = 4
 auto_exposure = true
 auto_exposure_mean_intensity = 1024
 write_klg = true
 directory = "/home/isaac/Pictures/intel_snapshot_test/"
+klg_directory = "/home/isaac/Pictures/intel_snapshot_test/"
 
 [depth]
 enable = true
@@ -36,4 +37,3 @@ export_prefix = "ir"
 snapshot_prefix = "ir_snap"
 width = 640
 height = 480
-

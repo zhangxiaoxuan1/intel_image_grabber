@@ -20,6 +20,7 @@
 int frames_written = 0;
 std::string name_suffix = ".png";
 std::string config_file;
+double depthScale = 5000;
 
 int capture_num;
 int frame_rate;
@@ -28,6 +29,8 @@ bool camera_auto_exposure;
 int camera_auto_exposure_mean_intensity_set_point;
 bool write_klg;
 std::string root_path;
+std::string klg_path;
+FILE * logFile;
 
 bool depth_enable;
 bool depth_plot;
@@ -59,8 +62,6 @@ std::string ir_snap_prefix;
 int ir_width;
 int ir_height;
 
-double g_dScale = 5000;//depth scale
-
 bool load_config() {
 	std::ifstream input(config_file);
 
@@ -82,6 +83,7 @@ bool load_config() {
 	camera_auto_exposure_mean_intensity_set_point = v.get<int>("settings.auto_exposure_mean_intensity");
 	write_klg = v.get<bool>("settings.write_klg");
 	root_path = v.get<std::string>("settings.directory");
+	klg_path = v.get<std::string>("settings.klg_directory");
 
 	depth_enable = v.get<bool>("depth.enable");
 	depth_plot = v.get<bool>("depth.display");
@@ -212,7 +214,10 @@ try {
 				 printf("Error: Failed to create ir directory, ir images will not be saved.\n");
 			 }
 		}
-		std::ofstream file(root_path+"associations.txt");
+		if(write_klg){
+			logFile = fopen((klg_path+"snapshot.klg").c_str(), "wb+");
+			fwrite(&capture_num, sizeof(int32_t), 1, logFile);
+		}
 
 	// Configure streams
 	if (frame_rate != 30 && frame_rate != 60){
@@ -268,13 +273,6 @@ try {
 				ss << depth_path << depth_prefix << std::setw(5)
 						<< std::setfill('0') << i << name_suffix;
 				cv::imwrite(ss.str(), depth);
-				if(write_klg){
-					std::stringstream klg_ss;
-					file << i << " ";
-					klg_ss << "./depth/" << depth_prefix << std::setw(5)
-					<< std::setfill('0') << i << name_suffix;
-					file << klg_ss.str() << " ";
-				}
 			}
 			if (depth_plot) {
 				// Convert 16bit to 8 bit color
@@ -293,13 +291,6 @@ try {
 				ss << rgb_path << rgb_prefix << std::setw(5)
 						<< std::setfill('0') << i << name_suffix;
 				cv::imwrite(ss.str(), color);
-				if(write_klg){
-					std::stringstream klg_ss;
-					klg_ss << i << " ./rgb/" << rgb_prefix << std::setw(5)
-					<< std::setfill('0') << i << name_suffix;
-					file << klg_ss.str() << "\n";
-				}
-
 			}
 			if (rgb_plot) {
 				cv::imshow("RGB", color);
@@ -318,6 +309,24 @@ try {
 			if (ir_plot) {
 				cv::imshow("IR", ir);
 			}
+		}
+		// If write klg file
+		if(write_klg){
+			cv::Mat new_depth;
+			depth.convertTo(new_depth, CV_16UC1, 1000 * 1.0 / depthScale);
+			int32_t depthSize = new_depth.total() * new_depth.elemSize();
+			int32_t imageSize = color.total() * color.elemSize();
+			// Timestamp
+			fwrite(&i, sizeof(int64_t), 1, logFile);
+			// DepthSize
+			fwrite(&depthSize, sizeof(int32_t), 1, logFile);
+			// imageSize
+			fwrite(&imageSize, sizeof(int32_t), 1, logFile);
+			// Depth buffer
+			fwrite((char*)new_depth.data, depthSize, 1, logFile);
+			// RGB buffer
+			fwrite((unsigned char *)color.data, imageSize, 1, logFile);
+
 		}
 		int key = cv::waitKey(10);
 		switch (key) {
@@ -350,6 +359,7 @@ try {
 			printf("Snapshot is taken.\n");
 		}
 	}
+	fclose(logFile);
 	return EXIT_SUCCESS;
 
 }
