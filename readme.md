@@ -59,4 +59,10 @@ Parameters influenced, in order:
 
 Compiling the cpp file without cmake: g++ -std=c++11 snapshot_intel.cpp -lrealsense -lopencv_core -lopencv_highgui
 
+If you want to run the klg output with Kintinuous or ElasticFusion, run
+
+`
+./ElasticFusion -l (path to snapshot.klg) -d 12 -c 3 -f
+`
+
 
