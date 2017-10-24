@@ -251,8 +251,8 @@ try {
 		if(camera_auto_exposure){
 			dev->set_option(rs::option::r200_auto_exposure_mean_intensity_set_point, (double)camera_auto_exposure_mean_intensity_set_point);
 		}
-		dev->start();
 	}
+	dev->start();
 
 	// Camera warmup - Dropped several first frames to let auto-exposure stabilize
 	for (int i = 0; i < 30; i++) {
