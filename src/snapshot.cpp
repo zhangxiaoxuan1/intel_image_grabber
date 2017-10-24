@@ -28,6 +28,7 @@ int dc_preset;
 bool camera_auto_exposure;
 int camera_auto_exposure_mean_intensity_set_point;
 bool write_klg;
+bool is_r200;
 std::string root_path;
 std::string klg_path;
 FILE * logFile;
@@ -84,6 +85,7 @@ bool load_config() {
 	write_klg = v.get<bool>("settings.write_klg");
 	root_path = v.get<std::string>("settings.directory");
 	klg_path = v.get<std::string>("settings.klg_directory");
+	is_r200 = v.get<bool>("settings.r200");
 
 	depth_enable = v.get<bool>("depth.enable");
 	depth_plot = v.get<bool>("depth.display");
@@ -238,17 +240,19 @@ try {
 		return EXIT_SUCCESS;
 	}
 
-	// Configure camera - Set hardware outlier removal parameters and auto exposure parameters
-	if (dc_preset < 0 || dc_preset > 5){
-		printf("Error: re_preset must be between 0 and 5. Check readme for configuration details.\n");
-		return EXIT_FAILURE;
+	// Configure camera if using R200 - Set hardware outlier removal parameters and auto exposure parameters
+	if(is_r200){
+		if (dc_preset < 0 || dc_preset > 5){
+			printf("Error: re_preset must be between 0 and 5. Check readme for configuration details.\n");
+			return EXIT_FAILURE;
+		}
+		rs_apply_depth_control_preset((rs_device *)dev, dc_preset);
+		dev->set_option(rs::option::r200_lr_auto_exposure_enabled, camera_auto_exposure);
+		if(camera_auto_exposure){
+			dev->set_option(rs::option::r200_auto_exposure_mean_intensity_set_point, (double)camera_auto_exposure_mean_intensity_set_point);
+		}
+		dev->start();
 	}
-	rs_apply_depth_control_preset((rs_device *)dev, dc_preset);
-	dev->set_option(rs::option::r200_lr_auto_exposure_enabled, camera_auto_exposure);
-	if(camera_auto_exposure){
-		dev->set_option(rs::option::r200_auto_exposure_mean_intensity_set_point, (double)camera_auto_exposure_mean_intensity_set_point);
-	}
-	dev->start();
 
 	// Camera warmup - Dropped several first frames to let auto-exposure stabilize
 	for (int i = 0; i < 30; i++) {

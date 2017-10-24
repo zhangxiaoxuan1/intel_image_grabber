@@ -12,7 +12,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/poco")
 # ---[ Solution name
 project(realsense_grabber C CXX)
 
-set(CMAKE_CXX_STANDARD 11)
+
+
+set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 
 add_subdirectory(src)
 
