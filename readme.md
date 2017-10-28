@@ -55,6 +55,10 @@ Parameters influenced, in order:
 * RS_OPTION_R200_DEPTH_CONTROL_NEIGHBOR_THRESHOLD,
 * RS_OPTION_R200_DEPTH_CONTROL_LR_THRESHOLD
 
+## depth scale
+
+Scale depth images. Default is 1000 (no scaling).
+
 # Notes
 
 If not using cmake, compile the cpp file without cmake: g++ -std=c++11 snapshot_intel.cpp -lrealsense -lopencv_core -lopencv_highgui

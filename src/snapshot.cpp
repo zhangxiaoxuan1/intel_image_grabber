@@ -20,7 +20,7 @@
 int frames_written = 0;
 std::string name_suffix = ".png";
 std::string config_file;
-double depthScale = 5000;
+int depthScale = 1000;
 
 int capture_num;
 int frame_rate;
@@ -86,6 +86,7 @@ bool load_config() {
 	root_path = v.get<std::string>("settings.directory");
 	klg_path = v.get<std::string>("settings.klg_directory");
 	is_r200 = v.get<bool>("settings.r200");
+	depthScale = v.get<int>("settings.depth_scale");
 
 	depth_enable = v.get<bool>("depth.enable");
 	depth_plot = v.get<bool>("depth.display");

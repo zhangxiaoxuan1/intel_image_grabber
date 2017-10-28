@@ -8,6 +8,7 @@ write_klg = true
 directory = "/home/motion/Pictures/oct-13-3/"
 klg_directory = "/home/motion/Pictures/oct-13-3/"
 r200 = false
+depth_scale = 1000
 
 [depth]
 enable = true
