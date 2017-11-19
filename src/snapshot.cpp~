@@ -20,7 +20,7 @@
 int frames_written = 0;
 std::string name_suffix = ".png";
 std::string config_file;
-int depthScale = 1000;
+double depthScale = 5000;
 
 int capture_num;
 int frame_rate;
@@ -28,7 +28,6 @@ int dc_preset;
 bool camera_auto_exposure;
 int camera_auto_exposure_mean_intensity_set_point;
 bool write_klg;
-bool is_r200;
 std::string root_path;
 std::string klg_path;
 FILE * logFile;
@@ -85,8 +84,6 @@ bool load_config() {
 	write_klg = v.get<bool>("settings.write_klg");
 	root_path = v.get<std::string>("settings.directory");
 	klg_path = v.get<std::string>("settings.klg_directory");
-	is_r200 = v.get<bool>("settings.r200");
-	depthScale = v.get<int>("settings.depth_scale");
 
 	depth_enable = v.get<bool>("depth.enable");
 	depth_plot = v.get<bool>("depth.display");
@@ -174,10 +171,6 @@ try {
 	rs::context ctx;
 	printf("You have %d connected RealSense devices.\n",
 			ctx.get_device_count());
-	if (ctx.get_device_count() == 0) {
-		printf("You have 0 device connected. Please check connection.\n");
-		return EXIT_FAILURE;
-	}
 
 	// Access the device
 	if (ctx.get_device_count() == 0) {
@@ -221,7 +214,7 @@ try {
 			logFile = fopen((klg_path+"snapshot.klg").c_str(), "wb+");
 			fwrite(&capture_num, sizeof(int32_t), 1, logFile);
 		}
-
+	printf("directories created");
 	// Configure streams
 	if (frame_rate != 30 && frame_rate != 60){
 		printf("Error: Frame rate must be 30 or 60.\n");
@@ -240,18 +233,23 @@ try {
 		printf("No stream enabled, program exits automatically.\n");
 		return EXIT_SUCCESS;
 	}
-
-	// Configure camera if using R200 - Set hardware outlier removal parameters and auto exposure parameters
-	if(is_r200){
-		if (dc_preset < 0 || dc_preset > 5){
-			printf("Error: re_preset must be between 0 and 5. Check readme for configuration details.\n");
-			return EXIT_FAILURE;
-		}
-		rs_apply_depth_control_preset((rs_device *)dev, dc_preset);
-		dev->set_option(rs::option::r200_lr_auto_exposure_enabled, camera_auto_exposure);
-		if(camera_auto_exposure){
-			dev->set_option(rs::option::r200_auto_exposure_mean_intensity_set_point, (double)camera_auto_exposure_mean_intensity_set_point);
-		}
+	
+	const float depth_fx = dev->get_stream_intrinsics(rs::stream::depth).fx;
+    	const float depth_fy = dev->get_stream_intrinsics(rs::stream::depth).fy;
+    	const float depth_cx = dev->get_stream_intrinsics(rs::stream::depth).ppx;
+    	const float depth_cy = dev->get_stream_intrinsics(rs::stream::depth).ppy;
+	printf("Camera.fx: %.3f\nCamera.fy: %.3f\nCamera.cx: %.3f\nCamera.cy: %.3f\n\n",
+            depth_fx, depth_fy, depth_cx, depth_cy);
+	
+	// Configure camera - Set hardware outlier removal parameters and auto exposure parameters
+	if (dc_preset < 0 || dc_preset > 5){
+		printf("Error: re_preset must be between 0 and 5. Check readme for configuration details.\n");
+		return EXIT_FAILURE;
+	}
+	rs_apply_depth_control_preset((rs_device *)dev, dc_preset);
+	// dev->set_option(rs::option::r200_lr_auto_exposure_enabled, camera_auto_exposure);
+	if(camera_auto_exposure){
+		// dev->set_option(rs::option::r200_auto_exposure_mean_intensity_set_point, (double)camera_auto_exposure_mean_intensity_set_point);
 	}
 	dev->start();
 
@@ -318,11 +316,9 @@ try {
 		// If write klg file
 		if(write_klg){
 			cv::Mat new_depth;
-			cv::Mat new_ir;
-			depth.convertTo(new_depth, CV_16UC1, 1000 * 1.0 / depthScale);
-			cv::cvtColor(ir, new_ir, cv::COLOR_GRAY2BGR);
+			new_depth = depth;
 			int32_t depthSize = new_depth.total() * new_depth.elemSize();
-			int32_t imageSize = new_ir.total() * new_ir.elemSize();
+			int32_t imageSize = color.total() * color.elemSize();
 			// Timestamp
 			fwrite(&i, sizeof(int64_t), 1, logFile);
 			// DepthSize
@@ -332,7 +328,7 @@ try {
 			// Depth buffer
 			fwrite((char*)new_depth.data, depthSize, 1, logFile);
 			// RGB buffer
-			fwrite((unsigned char *)new_ir.data, imageSize, 1, logFile);
+			fwrite((unsigned char *)color.data, imageSize, 1, logFile);
 
 		}
 		int key = cv::waitKey(10);
