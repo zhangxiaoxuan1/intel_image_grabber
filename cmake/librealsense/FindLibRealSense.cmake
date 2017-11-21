@@ -12,7 +12,9 @@
 # (https://github.com/alantrrs/augmented_dev).
 
 find_package(PkgConfig)
-
+if(NOT PKG_CONFIG_FOUND)
+  message(FATAL_ERROR "\n\n PkgConfig package is missing!\n\n")
+endif()
 #add a hint so that it can find it without the pkg-config
 find_path(LIBREALSENSE_INCLUDE_DIR rs.h
     HINTS /usr/include/  /usr/local/include

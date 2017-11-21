@@ -1,5 +1,6 @@
 //include the librealsense C++ header file
 #include <librealsense/rs.hpp>
+#include <librealsense/rs.hpp>
 
 // include opencv
 #include <opencv2/highgui/highgui.hpp>
@@ -271,7 +272,7 @@ try {
 
 		if (depth_enable) {
 			depth = cv::Mat(cv::Size(depth_width, depth_height), CV_16UC1,
-					(void*) dev->get_frame_data(rs::stream::depth),
+					(void*) dev->get_frame_data(rs::stream::depth_aligned_to_rectified_color),
 					cv::Mat::AUTO_STEP);
 			if (depth_write) {
 				std::stringstream ss;
@@ -288,7 +289,7 @@ try {
 		}
 		if (rgb_enable) {
 			color = cv::Mat(cv::Size(rgb_width, rgb_height), CV_8UC3,
-					(void*) dev->get_frame_data(rs::stream::color),
+					(void*) dev->get_frame_data(rs::stream::rectified_color),
 					cv::Mat::AUTO_STEP);
 			cv::cvtColor(color, color, cv::COLOR_BGR2RGB );
 			if (rgb_write) {
@@ -322,7 +323,7 @@ try {
 			depth.convertTo(new_depth, CV_16UC1, 1000 * 1.0 / depthScale);
 			cv::cvtColor(ir, new_ir, cv::COLOR_GRAY2BGR);
 			int32_t depthSize = new_depth.total() * new_depth.elemSize();
-			int32_t imageSize = new_ir.total() * new_ir.elemSize();
+            int32_t imageSize = color.total() * color.elemSize();
 			// Timestamp
 			fwrite(&i, sizeof(int64_t), 1, logFile);
 			// DepthSize
@@ -332,7 +333,7 @@ try {
 			// Depth buffer
 			fwrite((char*)new_depth.data, depthSize, 1, logFile);
 			// RGB buffer
-			fwrite((unsigned char *)new_ir.data, imageSize, 1, logFile);
+            fwrite(color.data, imageSize, 1, logFile);
 
 		}
 		int key = cv::waitKey(10);
